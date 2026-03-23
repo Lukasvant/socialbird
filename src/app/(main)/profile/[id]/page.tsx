@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar"
 import { PostGrid } from "@/src/components/profile/post-grid";
 import { EditProfileButton } from "@/src/components/profile/edit-profile-button";
 import { FollowButton } from "@/src/components/follow-button";
+import { MessageButton } from "@/src/components/profile/message-button";
 import { MapPin } from "lucide-react";
 
 export const metadata = { title: "Profile — WildScout" };
@@ -32,7 +33,7 @@ export default async function ProfilePage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, display_name, bio, avatar_url, location_name, interests, created_at")
+    .select("id, display_name, bio, avatar_url, location_name, interests, allow_dms, created_at")
     .eq("id", id)
     .single();
 
@@ -46,6 +47,7 @@ export default async function ProfilePage({
     { data: followerRows },
     { data: followingRows },
     { data: myFollow },
+    { data: theyFollowMe },
   ] = await Promise.all([
     fetchPosts(supabase, { currentUserId: user.id, userId: id, limit: 50 }),
     supabase.from("follows").select("follower_id", { count: "exact", head: true }).eq("following_id", id),
@@ -53,11 +55,21 @@ export default async function ProfilePage({
     isOwnProfile
       ? Promise.resolve({ data: null })
       : supabase.from("follows").select("follower_id").eq("follower_id", user.id).eq("following_id", id).maybeSingle(),
+    isOwnProfile
+      ? Promise.resolve({ data: null })
+      : supabase.from("follows").select("follower_id").eq("follower_id", id).eq("following_id", user.id).maybeSingle(),
   ]);
 
   const followerCount = (followerRows as unknown as { count?: number } | null)?.count ?? 0;
   const followingCount = (followingRows as unknown as { count?: number } | null)?.count ?? 0;
   const isFollowing = !isOwnProfile && !!myFollow;
+  const isMutual = isFollowing && !!theyFollowMe;
+
+  // Can send DM if: allow_dms='everyone', or allow_dms='mutual_only' and both follow each other
+  const canMessage =
+    !isOwnProfile &&
+    (profile.allow_dms === "everyone" ||
+      (profile.allow_dms === "mutual_only" && isMutual));
 
   const initials = profile.display_name
     .split(" ")
@@ -109,7 +121,7 @@ export default async function ProfilePage({
             </div>
           </div>
 
-          {/* Action button */}
+          {/* Action buttons */}
           {isOwnProfile ? (
             <EditProfileButton
               profile={{
@@ -122,11 +134,14 @@ export default async function ProfilePage({
               }}
             />
           ) : (
-            <FollowButton
-              targetUserId={id}
-              currentUserId={user.id}
-              initialFollowing={isFollowing}
-            />
+            <div className="flex flex-col gap-2">
+              <FollowButton
+                targetUserId={id}
+                currentUserId={user.id}
+                initialFollowing={isFollowing}
+              />
+              {canMessage && <MessageButton targetUserId={id} />}
+            </div>
           )}
         </div>
 
