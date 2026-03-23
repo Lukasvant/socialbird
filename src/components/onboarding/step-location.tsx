@@ -17,7 +17,6 @@ interface NominatimResult {
   display_name: string;
   lat: string;
   lon: string;
-  type: string;
   address?: {
     city?: string;
     town?: string;
@@ -26,6 +25,13 @@ interface NominatimResult {
     state?: string;
     country?: string;
   };
+}
+
+function formatLocationName(result: NominatimResult): string {
+  const addr = result.address;
+  const city = addr?.city || addr?.town || addr?.village || addr?.county || "";
+  return [city, addr?.state, addr?.country].filter(Boolean).join(", ") ||
+    result.display_name.split(",").slice(0, 2).join(",").trim();
 }
 
 export function StepLocation({ data, onNext, onBack }: StepLocationProps) {
@@ -42,24 +48,21 @@ export function StepLocation({ data, onNext, onBack }: StepLocationProps) {
   );
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const searchLocation = useCallback(async () => {
     if (!query.trim()) return;
-
     setIsSearching(true);
     setSearchError("");
     setResults([]);
-
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`;
-      const res = await fetch(url, {
-        headers: { "Accept-Language": "en" },
-      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5`,
+        { headers: { "Accept-Language": "en" } }
+      );
       const data: NominatimResult[] = await res.json();
       setResults(data);
-      if (data.length === 0) {
-        setSearchError("No locations found. Try a different search.");
-      }
+      if (data.length === 0) setSearchError("No locations found. Try a different search.");
     } catch {
       setSearchError("Search failed. Please try again.");
     } finally {
@@ -68,45 +71,27 @@ export function StepLocation({ data, onNext, onBack }: StepLocationProps) {
   }, [query]);
 
   function handleSelect(result: NominatimResult) {
-    const addr = result.address;
-    const cityName =
-      addr?.city || addr?.town || addr?.village || addr?.county || "";
-    const displayName = [cityName, addr?.state, addr?.country]
-      .filter(Boolean)
-      .join(", ");
-
-    setSelected({
-      name: displayName || result.display_name.split(",").slice(0, 2).join(",").trim(),
-      lat: parseFloat(result.lat),
-      lng: parseFloat(result.lon),
-    });
+    const name = formatLocationName(result);
+    setSelected({ name, lat: parseFloat(result.lat), lng: parseFloat(result.lon) });
+    setQuery(name);
     setResults([]);
-    setQuery(
-      displayName || result.display_name.split(",").slice(0, 2).join(",").trim()
-    );
+    setSubmitError("");
   }
 
   function handleContinue() {
-    onNext({
-      location_name: selected?.name ?? "",
-      location_lat: selected?.lat,
-      location_lng: selected?.lng,
-    });
-  }
-
-  function handleSkip() {
-    onNext({ location_name: "", location_lat: undefined, location_lng: undefined });
+    if (!selected) {
+      setSubmitError("Please search and select your location to continue.");
+      return;
+    }
+    onNext({ location_name: selected.name, location_lat: selected.lat, location_lng: selected.lng });
   }
 
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          Where are you based?
-        </h2>
+        <h2 className="text-lg font-semibold text-foreground">Where are you based?</h2>
         <p className="text-sm text-muted-foreground">
-          Your location helps you discover nearby wildlife enthusiasts. You can
-          change this later.
+          Your location helps you discover nearby wildlife enthusiasts.
         </p>
       </div>
 
@@ -122,6 +107,7 @@ export function StepLocation({ data, onNext, onBack }: StepLocationProps) {
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelected(null);
+                setSubmitError("");
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -150,74 +136,49 @@ export function StepLocation({ data, onNext, onBack }: StepLocationProps) {
       {/* Search results */}
       {results.length > 0 && (
         <div className="rounded-lg border border-border bg-background shadow-sm">
-          {results.map((result, i) => {
-            const addr = result.address;
-            const cityName =
-              addr?.city || addr?.town || addr?.village || addr?.county || "";
-            const displayLine = [cityName, addr?.state, addr?.country]
-              .filter(Boolean)
-              .join(", ");
-
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleSelect(result)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors first:rounded-t-lg last:rounded-b-lg border-b border-border last:border-0"
-              >
-                <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {displayLine || result.display_name.split(",")[0]}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {result.display_name.split(",").slice(1, 3).join(",").trim()}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+          {results.map((result, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSelect(result)}
+              className="flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition-colors first:rounded-t-lg last:rounded-b-lg last:border-0 hover:bg-accent"
+            >
+              <MapPin className="h-4 w-4 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {formatLocationName(result)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {result.display_name.split(",").slice(1, 3).join(",").trim()}
+                </p>
+              </div>
+            </button>
+          ))}
         </div>
       )}
 
-      {searchError && (
-        <p className="text-sm text-destructive">{searchError}</p>
-      )}
+      {searchError && <p className="text-sm text-destructive">{searchError}</p>}
 
-      {/* Selected location confirmation */}
       {selected && (
         <div className="flex items-center gap-3 rounded-lg bg-primary/10 px-4 py-3">
           <MapPin className="h-5 w-5 text-primary" />
           <div>
-            <p className="text-sm font-medium text-primary">
-              Location selected
-            </p>
+            <p className="text-sm font-medium text-primary">Location selected</p>
             <p className="text-sm text-muted-foreground">{selected.name}</p>
           </div>
         </div>
       )}
 
+      {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+
       <div className="flex gap-3">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1">
           Back
         </Button>
-        <Button
-          type="button"
-          onClick={handleContinue}
-          disabled={!selected}
-          className="flex-1"
-        >
+        <Button type="button" onClick={handleContinue} className="flex-1">
           Continue
         </Button>
       </div>
-
-      <button
-        type="button"
-        onClick={handleSkip}
-        className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        Skip for now
-      </button>
     </div>
   );
 }
