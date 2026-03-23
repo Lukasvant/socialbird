@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Nature-themed palette: earthy greens, warm browns, cream */
+    --background: 45 30% 97%;
+    --foreground: 30 15% 15%;
+    --card: 45 25% 95%;
+    --card-foreground: 30 15% 15%;
+    --popover: 45 25% 95%;
+    --popover-foreground: 30 15% 15%;
+    --primary: 142 38% 28%;
+    --primary-foreground: 45 30% 97%;
+    --secondary: 35 20% 88%;
+    --secondary-foreground: 30 15% 25%;
+    --muted: 40 15% 92%;
+    --muted-foreground: 30 10% 45%;
+    --accent: 35 30% 85%;
+    --accent-foreground: 30 15% 20%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 35 20% 82%;
+    --input: 35 20% 82%;
+    --ring: 142 38% 28%;
+    --radius: 0.5rem;
+    --chart-1: 142 38% 28%;
+    --chart-2: 35 55% 45%;
+    --chart-3: 195 50% 35%;
+    --chart-4: 60 40% 40%;
+    --chart-5: 20 60% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
