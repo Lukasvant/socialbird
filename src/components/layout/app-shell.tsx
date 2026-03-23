@@ -3,16 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar";
-import {
-  Home,
-  Compass,
-  MessageCircle,
-  User,
-  Plus,
-  LogOut,
-} from "lucide-react";
+import { Home, Compass, MessageCircle, User, Plus, Settings } from "lucide-react";
 import { createClient } from "@/src/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { NotificationBell } from "@/src/components/notifications/notification-bell";
 
 interface NavUser {
   id: string;
@@ -22,6 +16,7 @@ interface NavUser {
 
 interface AppShellProps {
   user: NavUser;
+  initialUnreadNotifications: number;
   children: React.ReactNode;
 }
 
@@ -32,7 +27,7 @@ const NAV_ITEMS = [
   { href: "/profile",  label: "Profile",  icon: User },
 ] as const;
 
-export function AppShell({ user, children }: AppShellProps) {
+export function AppShell({ user, initialUnreadNotifications, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -52,10 +47,7 @@ export function AppShell({ user, children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/*
-       * ── DESKTOP SIDEBAR ──────────────────────────────────────────────
-       * Hidden on mobile (< md). Fixed left column, full height.
-       */}
+      {/* ── DESKTOP SIDEBAR ───────────────────────────────────────────── */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-card md:flex">
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-5">
@@ -83,6 +75,13 @@ export function AppShell({ user, children }: AppShellProps) {
             );
           })}
 
+          {/* Notifications */}
+          <NotificationBell
+            userId={user.id}
+            initialCount={initialUnreadNotifications}
+            variant="sidebar"
+          />
+
           {/* New Post */}
           <Link
             href="/post/new"
@@ -107,22 +106,18 @@ export function AppShell({ user, children }: AppShellProps) {
                 {user.display_name}
               </span>
             </Link>
-            <button
-              onClick={handleSignOut}
-              title="Sign out"
+            <Link
+              href="/settings"
+              title="Settings"
               className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <LogOut className="h-4 w-4" />
-            </button>
+              <Settings className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </aside>
 
-      {/*
-       * ── MAIN CONTENT ─────────────────────────────────────────────────
-       * On desktop: offset by sidebar width.
-       * On mobile: full width with bottom padding for nav bar.
-       */}
+      {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
       <main className="flex min-h-screen w-full flex-col md:pl-60">
         {/* Mobile top bar */}
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
@@ -130,22 +125,27 @@ export function AppShell({ user, children }: AppShellProps) {
             <span className="text-xl">🦅</span>
             <span className="font-bold text-primary">WildScout</span>
           </div>
-          <Link
-            href="/post/new"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
-          >
-            <Plus className="h-5 w-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/settings"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/post/new"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
+            >
+              <Plus className="h-5 w-5" />
+            </Link>
+          </div>
         </header>
 
         {/* Page content */}
         <div className="flex-1 pb-16 md:pb-0">{children}</div>
       </main>
 
-      {/*
-       * ── MOBILE BOTTOM NAV ────────────────────────────────────────────
-       * Fixed bottom bar, only visible on mobile (< md).
-       */}
+      {/* ── MOBILE BOTTOM NAV ─────────────────────────────────────────── */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card md:hidden">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -162,6 +162,13 @@ export function AppShell({ user, children }: AppShellProps) {
             </Link>
           );
         })}
+
+        {/* Notifications bell tab */}
+        <NotificationBell
+          userId={user.id}
+          initialCount={initialUnreadNotifications}
+          variant="mobile"
+        />
       </nav>
     </div>
   );

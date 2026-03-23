@@ -199,6 +199,7 @@ export type Database = {
           type: "new_follower" | "post_liked" | "new_message";
           actor_id: string | null;
           post_id: string | null;
+          conversation_id: string | null;
           is_read: boolean;
           created_at: string;
         };
@@ -208,6 +209,7 @@ export type Database = {
           type: "new_follower" | "post_liked" | "new_message";
           actor_id?: string | null;
           post_id?: string | null;
+          conversation_id?: string | null;
           is_read?: boolean;
           created_at?: string;
         };
@@ -217,6 +219,7 @@ export type Database = {
           type?: "new_follower" | "post_liked" | "new_message";
           actor_id?: string | null;
           post_id?: string | null;
+          conversation_id?: string | null;
           is_read?: boolean;
           created_at?: string;
         };

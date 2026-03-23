@@ -2,13 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
 import { AppShell } from "@/src/components/layout/app-shell";
 
-/**
- * Layout for all authenticated + onboarded pages.
- * The middleware guarantees that by the time this layout renders,
- * the user is signed in and has is_onboarded = true.
- * (Exceptions: /onboarding lives inside (main) but the middleware
- *  redirects there BEFORE this layout tries to assert onboarded status.)
- */
 export default async function MainLayout({
   children,
 }: {
@@ -22,14 +15,20 @@ export default async function MainLayout({
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, avatar_url, is_onboarded")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, { count: unreadCount }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name, avatar_url, is_onboarded")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false),
+  ]);
 
-  // Still mid-onboarding — render without AppShell so the wizard
-  // doesn't show the nav chrome.
+  // Still mid-onboarding — render without AppShell chrome.
   if (!profile?.is_onboarded) {
     return <>{children}</>;
   }
@@ -41,6 +40,7 @@ export default async function MainLayout({
         display_name: profile.display_name,
         avatar_url: profile.avatar_url,
       }}
+      initialUnreadNotifications={unreadCount ?? 0}
     >
       {children}
     </AppShell>
