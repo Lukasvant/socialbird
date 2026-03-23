@@ -11,7 +11,10 @@ export async function fetchPosts(
   opts: {
     currentUserId?: string;
     cursor?: string | null;
+    /** Filter to a single user's posts (profile view) */
     userId?: string | null;
+    /** Filter to an explicit list of user IDs (followed feed) */
+    userIds?: string[] | null;
     limit?: number;
   }
 ): Promise<{ posts: PostWithAuthor[]; nextCursor: string | null }> {
@@ -26,6 +29,7 @@ export async function fetchPosts(
 
   if (opts.cursor) query = query.lt("created_at", opts.cursor);
   if (opts.userId) query = query.eq("user_id", opts.userId);
+  if (opts.userIds) query = query.in("user_id", opts.userIds);
 
   const { data: rawPosts, error } = await query;
   if (error) throw error;

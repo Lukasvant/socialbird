@@ -9,12 +9,15 @@ interface FeedClientProps {
   initialPosts: PostWithAuthor[];
   initialNextCursor: string | null;
   currentUserId: string;
+  /** When set, pagination fetches only posts from users followed by this ID + their own */
+  followedBy?: string;
 }
 
 export function FeedClient({
   initialPosts,
   initialNextCursor,
   currentUserId,
+  followedBy,
 }: FeedClientProps) {
   const [posts, setPosts] = useState(initialPosts);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
@@ -27,6 +30,8 @@ export function FeedClient({
 
     try {
       const params = new URLSearchParams({ cursor: nextCursor, limit: "12" });
+      if (followedBy) params.set("followedBy", followedBy);
+
       const res = await fetch(`/api/posts?${params}`);
       const data = await res.json();
 
@@ -39,20 +44,16 @@ export function FeedClient({
     } finally {
       setIsLoading(false);
     }
-  }, [nextCursor, isLoading]);
+  }, [nextCursor, isLoading, followedBy]);
 
-  // Infinite scroll with IntersectionObserver
+  // Infinite scroll
   useEffect(() => {
     const el = bottomRef.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) loadMore();
-      },
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
       { threshold: 0.1 }
     );
-
     observer.observe(el);
     return () => observer.disconnect();
   }, [loadMore]);
@@ -76,15 +77,12 @@ export function FeedClient({
         <PostCard key={post.id} post={post} currentUserId={currentUserId} />
       ))}
 
-      {/* Sentinel for infinite scroll */}
       <div ref={bottomRef} className="py-4 text-center">
         {isLoading && (
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
         )}
         {!nextCursor && posts.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            You&apos;ve reached the end
-          </p>
+          <p className="text-xs text-muted-foreground">You&apos;ve reached the end</p>
         )}
       </div>
     </div>

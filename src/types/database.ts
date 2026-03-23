@@ -224,6 +224,33 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      discover_users: {
+        Args: {
+          p_current_user_id: string;
+          p_lat: number;
+          p_lng: number;
+          p_radius_meters?: number;
+          p_interests?: string[] | null;
+          p_sort?: string;
+          p_limit?: number;
+        };
+        Returns: {
+          id: string;
+          display_name: string;
+          bio: string | null;
+          avatar_url: string | null;
+          location_name: string | null;
+          interests: string[];
+          follower_count: number;
+          distance_meters: number | null;
+          is_following: boolean;
+        }[];
+      };
+      profile_follow_counts: {
+        Args: { p_profile_id: string };
+        Returns: { follower_count: number; following_count: number }[];
+      };
+    };
   };
 };
