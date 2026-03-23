@@ -1,12 +1,15 @@
-export const metadata = { title: "New sighting — WildScout" };
+import { redirect } from "next/navigation";
+import { createClient } from "@/src/lib/supabase/server";
+import { PostForm } from "@/src/components/post/post-form";
 
-export default function NewPostPage() {
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-1 text-2xl font-bold text-foreground">New Sighting</h1>
-      <p className="text-sm text-muted-foreground">
-        Post creation — coming in Phase 3.
-      </p>
-    </div>
-  );
+export const metadata = { title: "New Sighting — WildScout" };
+
+export default async function NewPostPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  return <PostForm userId={user.id} />;
 }

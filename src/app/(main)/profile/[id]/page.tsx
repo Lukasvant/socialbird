@@ -1,17 +1,20 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/src/lib/supabase/server";
+import { fetchPosts } from "@/src/lib/posts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/src/components/ui/avatar";
-import { MapPin } from "lucide-react";
+import { PostGrid } from "@/src/components/profile/post-grid";
+import { EditProfileButton } from "@/src/components/profile/edit-profile-button";
+import { MapPin, UserPlus } from "lucide-react";
 
 export const metadata = { title: "Profile — WildScout" };
 
 const INTEREST_LABELS: Record<string, string> = {
-  birds: "🦜 Birds",
-  mammals: "🦊 Mammals",
-  marine: "🐋 Marine",
-  reptiles: "🦎 Reptiles",
-  insects: "🦋 Insects",
-  plants: "🌿 Plants",
+  birds: "Birds",
+  mammals: "Mammals",
+  marine: "Marine",
+  reptiles: "Reptiles",
+  insects: "Insects",
+  plants: "Plants",
 };
 
 export default async function ProfilePage({
@@ -21,18 +24,34 @@ export default async function ProfilePage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, bio, avatar_url, location_name, interests, created_at")
+    .select(
+      "id, display_name, bio, avatar_url, location_name, interests, created_at"
+    )
     .eq("id", id)
     .single();
 
   if (!profile) notFound();
 
   const isOwnProfile = user.id === id;
+
+  // Fetch this user's posts
+  const { posts } = await fetchPosts(supabase, {
+    currentUserId: user.id,
+    userId: id,
+    limit: 50,
+  });
+
+  // Placeholder follower/following counts (Phase 4)
+  const followerCount = 0;
+  const followingCount = 0;
+
   const initials = profile.display_name
     .split(" ")
     .map((n: string) => n[0])
@@ -41,47 +60,90 @@ export default async function ProfilePage({
     .slice(0, 2);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="rounded-xl border border-border bg-card p-6">
-        {/* Avatar + name */}
-        <div className="mb-4 flex items-start gap-4">
-          <Avatar className="h-16 w-16 border-2 border-border">
-            <AvatarImage src={profile.avatar_url ?? undefined} alt={profile.display_name} />
-            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* ── Profile header ──────────────────────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-start gap-4">
+          <Avatar className="h-20 w-20 border-2 border-border">
+            <AvatarImage
+              src={profile.avatar_url ?? undefined}
+              alt={profile.display_name}
+            />
+            <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-foreground">{profile.display_name}</h1>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-foreground">
+              {profile.display_name}
+            </h1>
             {profile.location_name && (
               <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
                 {profile.location_name}
               </p>
             )}
+
+            {/* Stats row */}
+            <div className="mt-3 flex gap-5 text-sm">
+              <div>
+                <span className="font-semibold text-foreground">
+                  {posts.length}
+                </span>{" "}
+                <span className="text-muted-foreground">posts</span>
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">
+                  {followerCount}
+                </span>{" "}
+                <span className="text-muted-foreground">followers</span>
+              </div>
+              <div>
+                <span className="font-semibold text-foreground">
+                  {followingCount}
+                </span>{" "}
+                <span className="text-muted-foreground">following</span>
+              </div>
+            </div>
           </div>
-          {isOwnProfile && (
-            <a
-              href="/settings/profile"
-              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+
+          {/* Action button */}
+          {isOwnProfile ? (
+            <EditProfileButton
+              profile={{
+                id: profile.id,
+                display_name: profile.display_name,
+                bio: profile.bio,
+                avatar_url: profile.avatar_url,
+                location_name: profile.location_name,
+                interests: profile.interests,
+              }}
+            />
+          ) : (
+            <button
+              disabled
+              title="Follow — coming in Phase 4"
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground opacity-60"
             >
-              Edit profile
-            </a>
+              <UserPlus className="h-4 w-4" />
+              Follow
+            </button>
           )}
         </div>
 
         {/* Bio */}
         {profile.bio && (
-          <p className="mb-4 text-sm text-foreground">{profile.bio}</p>
+          <p className="mt-4 text-sm text-foreground">{profile.bio}</p>
         )}
 
         {/* Interests */}
         {profile.interests && profile.interests.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {profile.interests.map((interest: string) => (
               <span
                 key={interest}
-                className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
               >
                 {INTEREST_LABELS[interest] ?? interest}
               </span>
@@ -90,10 +152,13 @@ export default async function ProfilePage({
         )}
       </div>
 
-      {/* Posts placeholder — Phase 3 */}
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        Posts coming in Phase 3.
-      </p>
+      {/* ── Posts grid ──────────────────────────────────────────────── */}
+      <div className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Sightings
+        </h2>
+        <PostGrid posts={posts} currentUserId={user.id} />
+      </div>
     </div>
   );
 }
