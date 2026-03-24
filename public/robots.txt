@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /post/new
+Allow: /
+
+Sitemap: https://wildscout.app/sitemap.xml
